@@ -34,8 +34,9 @@ typedef boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
 typedef typename boost::graph_traits<graph_t>::vertex_descriptor vertex_t;
 typedef typename boost::graph_traits<graph_t>::edge_descriptor edge_t;
 
-void print_graph1(const graph_t &graph);
-void print_graph2(const graph_t &graph);
+void print_graph_routing(const graph_t &graph);
+void print_graph_resource(const graph_t &graph);
+void print_graph(const graph_t &graph);
 bool topologicalSort(const graph_t &graph, deque<vertex_t> &topologicalSorted);
 void print_adjacencyList(const graph_t &graph);
 
@@ -62,19 +63,33 @@ int main() {
 	graph[o11].type = Vertex::Operation;
 
 	//create edges conecting vertices
-	edge_t e1121, e1131, e2141, e3141;
+	edge_t e1121, e1131, e2141, e3141, e11212;
 	bool b;
 	boost::tie(e1121, b) = boost::add_edge(o11, o21, graph);
 	boost::tie(e1131, b) = boost::add_edge(o11, o31, graph);
 	boost::tie(e2141, b) = boost::add_edge(o21, o41, graph);
 	boost::tie(e3141, b) = boost::add_edge(o31, o41, graph);
 
+	boost::tie(e11212, b) = boost::add_edge(o11, o21, graph);
+	if (b)
+		cout << "success" << endl;
+
 	//acess edges and change properties
-	graph[e1121].weight = 10;
+	graph[e1121].weight = 1234 * 0.5;
 	graph[e1121].type = Edge::Routing;
+	graph[e1131].weight = 4512 * 0.5;
+	graph[e1131].type = Edge::Routing;
+	graph[e2141].weight = 3123 * 0.5;
+	graph[e2141].type = Edge::Routing;
+	graph[e3141].weight = 3125 * 0.5;
+	graph[e3141].type = Edge::Routing;
+
+	graph[e11212].weight = 1111 * 0.5;
+	graph[e11212].type = Edge::Resource;
 
 	//custom print graph with edges weight
-	print_graph1(graph);
+	print_graph_routing(graph);
+	print_graph_resource(graph);
 
 	//print ajacency list
 	print_adjacencyList(graph);
@@ -93,20 +108,39 @@ int main() {
 	}
 }
 
-void print_graph1(const graph_t &graph) {
-	cout << "Graph:" << endl;
+//print all edges correspondents to routing constraints
+void print_graph_routing(const graph_t &graph) {
+	cout << "Routing Adjacencies:" << endl;
 	auto edges = boost::edges(graph);
 	for (auto it = edges.first; it != edges.second; ++it) {
 		edge_t edge = *it;
 		vertex_t source = boost::source(*it, graph);
 		vertex_t target = boost::target(*it, graph);
 
-		cout << graph[source].label << " -> " << graph[target].label
-				<< " weight: " << graph[edge].weight << endl;
+		if (graph[edge].type == Edge::Routing) {
+			cout << graph[source].label << " -> " << graph[target].label
+					<< " weight: " << graph[edge].weight << endl;
+		}
 	}
 }
 
-void print_graph2(const graph_t &graph) {
+//print all edges correspondents to resource constraints
+void print_graph_resource(const graph_t &graph) {
+	cout << "Resource Adjacencies:" << endl;
+	auto edges = boost::edges(graph);
+	for (auto it = edges.first; it != edges.second; ++it) {
+		edge_t edge = *it;
+		vertex_t source = boost::source(*it, graph);
+		vertex_t target = boost::target(*it, graph);
+
+		if (graph[edge].type == Edge::Resource) {
+			cout << graph[source].label << " -> " << graph[target].label
+					<< " weight: " << graph[edge].weight << endl;
+		}
+	}
+}
+
+void print_graph(const graph_t &graph) {
 	boost::write_graphviz(cout, graph);
 }
 
