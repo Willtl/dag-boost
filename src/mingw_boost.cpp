@@ -5,13 +5,15 @@
 
 #include <iostream>
 #include <string>
-#include <deque>
 #include <iterator>
-#include <vector>
+#include <vector>		// std::vector
+#include <deque>		// std::deque
+#include <algorithm>    // std::find
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphviz.hpp>
 #include <boost/graph/topological_sort.hpp>
+#include <boost/graph/breadth_first_search.hpp>
 
 using namespace std;
 
@@ -20,6 +22,7 @@ struct Vertex {
 		Operation, Unavailability
 	} type;
 	string label;
+	double starting = 0;
 };
 
 struct Edge {
@@ -38,6 +41,8 @@ void print_graph_routing(const graph_t &graph);
 void print_graph_resource(const graph_t &graph);
 void print_graph(const graph_t &graph);
 bool topologicalSort(const graph_t &graph, deque<vertex_t> &topologicalSorted);
+void longestPath(graph_t &graph, const deque<vertex_t> &topologicalSorted);
+void longestPathOnlyOneEdge(graph_t &graph, const deque<vertex_t> &topologicalSorted);
 void print_adjacencyList(const graph_t &graph);
 
 int main() {
@@ -71,8 +76,6 @@ int main() {
 	boost::tie(e3141, b) = boost::add_edge(o31, o41, graph);
 
 	boost::tie(e11212, b) = boost::add_edge(o11, o21, graph);
-	if (b)
-		cout << "success" << endl;
 
 	//acess edges and change properties
 	graph[e1121].weight = 1234 * 0.5;
@@ -84,7 +87,7 @@ int main() {
 	graph[e3141].weight = 3125 * 0.5;
 	graph[e3141].type = Edge::Routing;
 
-	graph[e11212].weight = 1111 * 0.5;
+	graph[e11212].weight = 5000 * 0.5;
 	graph[e11212].type = Edge::Resource;
 
 	//custom print graph with edges weight
@@ -106,11 +109,12 @@ int main() {
 		}
 		cout << endl;
 	}
+	longestPath(graph, topologicalSorted);
 }
 
 //print all edges correspondents to routing constraints
 void print_graph_routing(const graph_t &graph) {
-	cout << "Routing Adjacencies:" << endl;
+	cout << "Routing Edges:" << endl;
 	auto edges = boost::edges(graph);
 	for (auto it = edges.first; it != edges.second; ++it) {
 		edge_t edge = *it;
@@ -126,7 +130,7 @@ void print_graph_routing(const graph_t &graph) {
 
 //print all edges correspondents to resource constraints
 void print_graph_resource(const graph_t &graph) {
-	cout << "Resource Adjacencies:" << endl;
+	cout << "Resource Edges:" << endl;
 	auto edges = boost::edges(graph);
 	for (auto it = edges.first; it != edges.second; ++it) {
 		edge_t edge = *it;
@@ -140,10 +144,12 @@ void print_graph_resource(const graph_t &graph) {
 	}
 }
 
+//print graph using graphviz lib
 void print_graph(const graph_t &graph) {
 	boost::write_graphviz(cout, graph);
 }
 
+//try to perform topo sort and return true if the graph is a dag
 bool topologicalSort(const graph_t &graph, deque<vertex_t> &topologicalSorted) {
 	try {
 		boost::topological_sort(graph, front_inserter(topologicalSorted));
@@ -152,6 +158,73 @@ bool topologicalSort(const graph_t &graph, deque<vertex_t> &topologicalSorted) {
 		return false;
 	}
 	return true;
+}
+
+void longestPath(graph_t &graph, const deque<vertex_t> &topologicalSorted) {
+	cout << "Longest Path Procedure" << endl;
+	for (int i = 0; i < topologicalSorted.size(); i++) {
+		vertex_t vertexID = topologicalSorted[i];
+		Vertex v = graph[vertexID];
+		cout << "Calculating longest path to adjacencies of " << v.label
+				<< endl;
+
+		vector<vertex_t> visited;
+		auto adjacency = boost::adjacent_vertices(topologicalSorted[i], graph);
+		for (auto it = adjacency.first; it != adjacency.second; ++it) {
+			vertex_t adjacentID = *it;
+			Vertex adj = graph[adjacentID];
+
+			if (visited.empty()
+					|| std::find(visited.begin(), visited.end(), adjacentID)
+							== visited.end()) {
+				boost::graph_traits<graph_t>::out_edge_iterator ei, ei_end;
+				boost::tie(ei, ei_end) = out_edges(vertexID, graph);
+				int parallel_count = 0;
+
+				for (; ei != ei_end; ++ei) {
+					if (target(*ei, graph) == adjacentID) {
+						edge_t edge = *ei;
+						double path = graph[vertexID].starting + graph[edge].weight;
+						if (graph[adjacentID].starting < path) {
+							graph[adjacentID].starting = path;
+							cout << "New Longest Path to "
+									<< graph[adjacentID].label << " from "
+									<< graph[vertexID].label << " weight: "
+									<< path << endl;
+						}
+					};
+				};
+				visited.push_back(adjacentID);
+			}
+		}
+		cout << endl;
+	}
+}
+
+void longestPathOnlyOneEdge(graph_t &graph,
+		const deque<vertex_t> &topologicalSorted) {
+	cout << "Longest Path Procedure" << endl;
+	for (int i = 0; i < topologicalSorted.size(); i++) {
+		vertex_t vertexID = topologicalSorted[i];
+		Vertex v = graph[vertexID];
+
+		//loop through adjacency of each vertex in the graph
+		auto adjacency = boost::adjacent_vertices(topologicalSorted[i], graph);
+		for (auto it = adjacency.first; it != adjacency.second; ++it) {
+			vertex_t adjacentID = *it;
+			Vertex adj = graph[adjacentID];
+
+			pair<edge_t, bool> edge = boost::edge(vertexID, adjacentID, graph);
+			double path = graph[vertexID].starting + graph[edge.first].weight;
+			if (graph[adjacentID].starting < path) {
+				graph[adjacentID].starting = path;
+				cout << "New Longest Path to " << graph[adjacentID].label
+						<< " from " << graph[vertexID].label << " weight: "
+						<< path << endl;
+			}
+		}
+		cout << endl;
+	}
 }
 
 void print_adjacencyList(const graph_t &graph) {
